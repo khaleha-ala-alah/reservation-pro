@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <linearGradient id="g" x1="24" y1="24" x2="232" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563EB"/><stop offset="1" stop-color="#60A5FA"/>
+    </linearGradient>
+  </defs>
+  <!-- rounded square badge -->
+  <rect x="16" y="16" width="224" height="224" rx="48" fill="url(#g)"/>
+  <!-- calendar top bar -->
+  <rect x="56" y="80" width="144" height="20" rx="6" fill="white" opacity="0.9"/>
+  <!-- calendar body -->
+  <rect x="56" y="100" width="144" height="100" rx="12" fill="white" opacity="0.95"/>
+  <!-- check -->
+  <path d="M88 150l18 18 46-46" stroke="#2563EB" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- flask (simple) -->
+  <path d="M152 76v28l22 36c6 10-1 22-13 22h-40c-12 0-19-12-13-22l22-36V76" stroke="white" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
+  <circle cx="168" cy="64" r="6" fill="white" opacity="0.95"/>
+</svg>

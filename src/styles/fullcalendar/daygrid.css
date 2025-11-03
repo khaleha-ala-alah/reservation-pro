@@ -1,0 +1,24 @@
+
+.fc-daygrid-day {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+}
+.fc-daygrid-day-number {
+  padding: 4px 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.fc-day-today {
+  background: #eff6ff !important;
+}
+.fc-daygrid-event {
+  background: #2563eb;
+  color: #fff;
+  border-radius: 4px;
+  padding: 1px 3px;
+  font-size: 0.75rem;
+  margin: 1px 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

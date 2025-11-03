@@ -1,0 +1,21 @@
+
+.fc-timegrid-slot {
+  border-bottom: 1px solid #e5e7eb;
+  height: 2.5rem;
+}
+.fc-timegrid-slot-label {
+  padding: 0 4px;
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+.fc-timegrid-event {
+  background: #2563eb;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.75rem;
+  padding: 2px 4px;
+  overflow: hidden;
+}
+.fc-timegrid-event:hover {
+  background: #1e40af;
+}
