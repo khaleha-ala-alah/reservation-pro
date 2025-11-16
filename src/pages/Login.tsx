@@ -8,10 +8,13 @@ function isEmail(v: string) {
 
 export default function Login() {
   const nav = useNavigate();
-  const { login } = useAuthStore();
+  // selector avoids unnecessary re-renders
+  const login = useAuthStore((s) => s.login);
+
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   return (
     <div className="min-h-screen grid place-items-center bg-gray-50">
@@ -26,8 +29,16 @@ export default function Login() {
             if (!email.trim() || !isEmail(email)) { setError("Email invalide."); return; }
             if (pwd.length < 6) { setError("Mot de passe : 6 caractères minimum."); return; }
 
-            await login(email.trim(), pwd);
-            nav("/dashboard");
+            try {
+              setLoading(true);
+              await login(email.trim(), pwd);     // calls /api/auth/login, stores token+user
+              nav("/", { replace: true });        // go to dashboard route ("/")
+            } catch (err: any) {
+              // show backend message if present
+              setError(err?.response?.data?.error || "Échec de la connexion.");
+            } finally {
+              setLoading(false);
+            }
           }}
           className="space-y-3"
           noValidate
@@ -49,10 +60,11 @@ export default function Login() {
             required
           />
 
-       
           {error && <div className="text-red-600 text-sm">{error}</div>}
 
-          <button className="btn btn-primary w-full">Se connecter</button>
+          <button className="btn btn-primary w-full" disabled={loading}>
+            {loading ? "Connexion..." : "Se connecter"}
+          </button>
         </form>
 
         <p className="text-sm text-gray-500 mt-3 text-center">

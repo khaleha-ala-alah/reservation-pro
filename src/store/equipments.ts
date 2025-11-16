@@ -1,61 +1,53 @@
 import { create } from "zustand";
-import type { Equipment } from "../types";
-import { MOCK_EQUIPMENTS } from "../mock/equipment";
+import { api } from "../api/axios";
 
-type State = {
-  equipments: Equipment[];
-  fetchAll: () => void;
-  setAll: (items: Equipment[]) => void;
-  getById: (id: string | number) => Equipment | undefined;
+export type Equipment = {
+  _id: string;
+  name: string;
+  description?: string;
+  capacity?: number;
+  location?: string;
+  status: "available" | "maintenance" | "out";
+  photoUrl?: string;
 };
 
-const KEY = "equipments";
+type EqState = {
+  equipments: Equipment[];
+  fetchAll: () => Promise<void>;
+  create: (payload: Partial<Equipment>) => Promise<Equipment>;
+  update: (id: string, payload: Partial<Equipment>) => Promise<Equipment>;
+  remove: (id: string) => Promise<void>;
+  /** ✅ added so EquipmentDetail can use it */
+  getById: (id: string) => Equipment | undefined;
+};
 
-function lsGet<T>(k: string): T | null {
-  try {
-    const v = localStorage.getItem(k);
-    return v ? (JSON.parse(v) as T) : null;
-  } catch {
-    return null;
-  }
-}
-function lsSet(k: string, v: unknown) {
-  try {
-    localStorage.setItem(k, JSON.stringify(v));
-  } catch {}
-}
+export const useEquipmentsStore = create<EqState>((set, get) => ({
+  equipments: [],
 
-export const useEquipmentsStore = create<State>((set, get) => ({
-  equipments: lsGet<Equipment[]>(KEY) ?? [],
-
-  fetchAll() {
-    const fromLS = lsGet<Equipment[]>(KEY) ?? [];
-
-    // Accept LS only if:
-    // - projector is present,
-    // - every item has a photoUrl,
-    // - and printer photoUrl is not the old .png path.
-    const hasProjector = fromLS.some((e) => e.id === "equip-3");
-    const hasUrls = fromLS.every((e) => !!e.photoUrl);
-    const printerStale = fromLS.some(
-      (e) => e.name === "Imprimante 3D" && String(e.photoUrl || "").endsWith("printer.png")
-    );
-
-    if (fromLS.length > 0 && hasProjector && hasUrls && !printerStale) {
-      set({ equipments: fromLS });
-      return;
-    }
-
-    set({ equipments: MOCK_EQUIPMENTS });
-    lsSet(KEY, MOCK_EQUIPMENTS);
+  fetchAll: async () => {
+    const { data } = await api.get("/equipments");
+    set({ equipments: data });
   },
 
-  setAll(items) {
-    set({ equipments: items });
-    lsSet(KEY, items);
+  create: async (payload) => {
+    const { data } = await api.post("/equipments", payload);
+    set({ equipments: [data, ...get().equipments] });
+    return data;
   },
 
-  getById(id) {
-    return get().equipments.find((e) => String(e.id) === String(id));
+  update: async (id, payload) => {
+    const { data } = await api.put(`/equipments/${id}`, payload);
+    set({ equipments: get().equipments.map((e) => (e._id === id ? data : e)) });
+    return data;
   },
+
+  remove: async (id) => {
+    await api.delete(`/equipments/${id}`);
+    set({ equipments: get().equipments.filter((e) => e._id !== id) });
+  },
+
+  /** ✅ simple selector used by EquipmentDetail */
+  getById: (id) => get().equipments.find((e) => e._id === id),
 }));
+
+export default useEquipmentsStore;

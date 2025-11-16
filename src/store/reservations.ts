@@ -1,124 +1,87 @@
-// src/store/reservations.ts
 import { create } from "zustand";
-import type { Reservation } from "../types";
+import { api } from "../api/axios";
 
-type Status = "pending" | "approved" | "rejected" | "cancelled";
-
-type NewReservation = {
+export type Reservation = {
+  _id: string;
   equipmentId: string;
   userId: string;
   start: string; // ISO
   end: string;   // ISO
   reason?: string;
+  status: "pending" | "approved" | "rejected" | "cancelled";
 };
 
-type State = {
+type NewReservation = {
+  equipmentId: string;
+  start: string;
+  end: string;
+  reason?: string;
+};
+
+type ResState = {
   reservations: Reservation[];
-
-  // CRUD-ish
-  create: (data: NewReservation) => void;
-  cancel: (id: string) => void;
-  approve: (id: string) => void;
-  reject: (id: string) => void;
-
-  // NEW: admin bulk action
-  clearAll: () => void;
-
-  // Used by EquipmentDetail on calendar selection
+  fetchMine: () => Promise<void>;
+  create: (payload: NewReservation) => Promise<Reservation>;
+  cancel: (id: string) => Promise<Reservation>;
+  approve: (id: string) => Promise<Reservation>;
+  reject: (id: string) => Promise<Reservation>;
+  fetchAdmin: (status?: string) => Promise<Reservation[]>;
+  /** ✅ keep old UI happy; backend still enforces conflicts */
   hasConflict: (equipmentId: string, startISO: string, endISO: string) => boolean;
-
-  // Optional helpers
-  listPending: () => Reservation[];
-  listByUser: (userId: string) => Reservation[];
-  listByEquipment: (equipmentId: string) => Reservation[];
 };
 
-// ---- localStorage helpers
-function lsGet<T>(k: string): T | null {
-  try {
-    const v = localStorage.getItem(k);
-    return v ? (JSON.parse(v) as T) : null;
-  } catch {
-    return null;
-  }
-}
-function lsSet(k: string, v: any) {
-  try {
-    localStorage.setItem(k, JSON.stringify(v));
-  } catch {}
-}
+export const useReservationsStore = create<ResState>((set, get) => ({
+  reservations: [],
 
-const KEY = "reservations";
-
-export const useReservationsStore = create<State>((set, get) => ({
-  reservations: lsGet<Reservation[]>(KEY) ?? [],
-
-  create(data) {
-    const newItem: Reservation = {
-      id: (crypto?.randomUUID && crypto.randomUUID()) || String(Date.now()),
-      equipmentId: data.equipmentId,
-      userId: data.userId,
-      start: data.start,
-      end: data.end,
-      status: "pending",
-      reason: data.reason,
-    };
-    const next = [...get().reservations, newItem];
-    set({ reservations: next });
-    lsSet(KEY, next);
+  fetchMine: async () => {
+    const { data } = await api.get("/reservations");
+    set({ reservations: data });
   },
 
-  cancel(id) {
-    const next = get().reservations.map((r) =>
-      r.id === id ? { ...r, status: "cancelled" } : r
-    );
-    set({ reservations: next });
-    lsSet(KEY, next);
+  create: async (payload) => {
+    const { data } = await api.post("/reservations", payload);
+    set({ reservations: [data, ...get().reservations] });
+    return data;
   },
 
-  approve(id) {
-    const next = get().reservations.map((r) =>
-      r.id === id ? { ...r, status: "approved" } : r
-    );
-    set({ reservations: next });
-    lsSet(KEY, next);
+  cancel: async (id) => {
+    const { data } = await api.patch(`/reservations/${id}/cancel`);
+    set({ reservations: get().reservations.map((r) => (r._id === id ? data : r)) });
+    return data;
   },
 
-  reject(id) {
-    const next = get().reservations.map((r) =>
-      r.id === id ? { ...r, status: "rejected" } : r
-    );
-    set({ reservations: next });
-    lsSet(KEY, next);
+  approve: async (id) => {
+    const { data } = await api.patch(`/reservations/${id}/approve`);
+    set({ reservations: get().reservations.map((r) => (r._id === id ? data : r)) });
+    return data;
   },
 
- 
-  hasConflict(equipmentId, startISO, endISO) {
-    const sNew = new Date(startISO).getTime();
-    const eNew = new Date(endISO).getTime();
+  reject: async (id) => {
+    const { data } = await api.patch(`/reservations/${id}/reject`);
+    set({ reservations: get().reservations.map((r) => (r._id === id ? data : r)) });
+    return data;
+  },
+
+  fetchAdmin: async (status) => {
+    const { data } = await api.get(`/reservations/admin${status ? `?status=${status}` : ""}`);
+    return data;
+  },
+
+  /** NOTE: This checks only reservations in local store.
+   * Backend will still block with 409 if another user's reservation overlaps.
+   */
+  hasConflict: (equipmentId, startISO, endISO) => {
+    const s = new Date(startISO).getTime();
+    const e = new Date(endISO).getTime();
+    if (!isFinite(s) || !isFinite(e)) return false;
+
     return get().reservations.some((r) => {
-      if (r.equipmentId !== equipmentId || r.status === "cancelled") return false;
-      const s = new Date(r.start).getTime();
-      const e = new Date(r.end).getTime();
-      
-      return sNew < e && eNew > s;
+      if (r.equipmentId !== equipmentId) return false;
+      if (r.status === "cancelled" || r.status === "rejected") return false;
+      const rs = new Date(r.start).getTime();
+      const re = new Date(r.end).getTime();
+      // overlap if (s < re) && (e > rs)
+      return s < re && e > rs;
     });
-  },
-
-
-  listPending() {
-    return get().reservations.filter((r) => r.status === "pending");
-  },
-  listByUser(userId) {
-    return get().reservations.filter((r) => r.userId === userId);
-  },
-  listByEquipment(equipmentId) {
-    return get().reservations.filter((r) => r.equipmentId === equipmentId);
-  },
-
-
-  clearAll() {
-    set({ reservations: [] });
-    lsSet(KEY, []);
   },
 }));
